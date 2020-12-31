@@ -1,9 +1,14 @@
-use image::imageops;
-use image::imageops::colorops;
-use image::io::Reader;
-use image::{GenericImageView, ImageBuffer, Pixel};
-extern crate clap;
 use clap::{App, Arg};
+use glob::*;
+use image::{
+    DynamicImage,
+    GenericImageView,
+    ImageBuffer,
+    Pixel,
+    imageops::{self, colorops},
+    io::Reader
+};
+use std::path::PathBuf;
 
 fn constrained_resize_dims(target: (u32, u32), orig: (u32, u32)) -> (u32, u32) {
     let target_width = target.0 as f32;
@@ -41,37 +46,85 @@ where
     cropped.to_image()
 }
 
+fn _input_files_str(input_glob: &str) -> impl Iterator<Item = String> {
+    glob(input_glob)
+    .unwrap()  // Iterator<Result<PathBuf, GlobError>>
+    .flat_map(|ps| { // ps: Result<PathBuf, GlobError>>
+        ps.map(|p| { // p: PathBuf
+            p.to_str().map(|x| String::from(x)) // : Result<String, GlobError>
+        }) // : Iterator<Result<Result<String, _>, _>>
+    }) // : Iterator<Result<String, _>
+    .flatten()
+}
+
+fn input_files(input_glob: &str) -> impl Iterator<Item = PathBuf> {
+    glob(input_glob).unwrap().flatten()
+}
+
 fn main() {
     let matches = App::new("E-Ink Gallery Maker")
         .version("6000000000")
         .author("bballant")
         .about("Make jpgs for display on raspberry pi e-ink display.")
         .arg(
-            Arg::with_name("INPUT")
+            Arg::with_name("GLOB")
                 .required(true)
                 .index(1)
-                .help("Input file"),
+                .help("Input glob"),
         )
         .arg(
-            Arg::with_name("OUTPUT")
+            Arg::with_name("OUTDIR")
                 .required(true)
                 .index(2)
-                .help("Output file"),
+                .help("Output directory"),
         )
         .get_matches();
 
-    let input_file = matches.value_of("INPUT").unwrap();
-    let output_file = matches.value_of("OUTPUT").unwrap();
+    let input_glob = matches.value_of("GLOB").unwrap();
+    let output_dir = matches.value_of("OUTDIR").unwrap();
 
-    let img = Reader::open(input_file)
-        .unwrap()
-        .with_guessed_format()
-        .unwrap()
-        .decode()
-        .unwrap();
-    let cropped = resize_crop(&img, 122, 255);
-    let grey = colorops::grayscale(&cropped);
-    let out = colorops::contrast(&grey, 100.0);
-    out.save(output_file).unwrap();
+    for (i, file) in input_files(input_glob).enumerate() {
+
+        let filename: String =
+            file
+            .as_path()
+            .file_stem()
+            .and_then(|x| x.to_str())
+            .map(|y| String::from(y))
+            .unwrap_or(String::from("foo"));
+
+        let img_opt: Option<DynamicImage> =
+            Reader::open(&file)
+            .and_then(|x| x.with_guessed_format())
+            .ok()
+            .and_then(|x| x.decode().ok());
+
+        match img_opt {
+            Some(img) => {
+                let output_path = format!("{}/{:03}.{}.png", output_dir, i, filename);
+                println!("Creating {}.", output_path);
+                let img = resize_crop(&img, 122, 255);
+                let img = colorops::grayscale(&img);
+                let img = colorops::brighten(&img, 20);
+                let mut out = colorops::contrast(&img, 150.0);
+                colorops::dither(&mut out, &colorops::BiLevel);
+                println!("Saving {}.", output_path);
+                match out.save(&output_path) {
+                    Ok(_) => {
+                        println!("Saved {}!", output_path);
+                    },
+                    Err(e) => {
+                        println!("Could not save {}.", output_path);
+                        println!("{:?}", e);
+                    }
+                }
+            },
+            None => {
+                println!("Could not open {}.", file.to_str().unwrap_or("unknown"));
+                continue;
+            },
+        }
+
+    }
     println!("Done!");
 }
