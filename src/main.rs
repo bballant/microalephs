@@ -10,6 +10,11 @@ use image::{
 };
 use std::path::PathBuf;
 
+/// Given target dimensions and input dimensions, return new
+/// dimensions for resizing the image so that the proportionally
+/// longest dimension is constrained to the target dimension and the
+/// other is rescaled proportionally.
+/// This is the resize step in resize_crop().
 fn constrained_resize_dims(target: (u32, u32), orig: (u32, u32)) -> (u32, u32) {
     let target_width = target.0 as f32;
     let target_height = target.1 as f32;
@@ -23,11 +28,12 @@ fn constrained_resize_dims(target: (u32, u32), orig: (u32, u32)) -> (u32, u32) {
         // then constrain the height to the target and let width adjust
         (((orig_width / orig_height) * target_height) as u32, target.1)
     } else {
-        // else the target is fatter orig so constrain the width to target
+        // else the target is fatter so constrain the width to target
         (target.0, ((orig_height / orig_width) * target_width) as u32)
     }
 }
 
+/// Resize and crop the given image to best fit the given dimensions
 fn resize_crop<I: GenericImageView>(
     img: &I,
     w: u32,
@@ -46,26 +52,15 @@ where
     cropped.to_image()
 }
 
-fn _input_files_str(input_glob: &str) -> impl Iterator<Item = String> {
-    glob(input_glob)
-    .unwrap()  // Iterator<Result<PathBuf, GlobError>>
-    .flat_map(|ps| { // ps: Result<PathBuf, GlobError>>
-        ps.map(|p| { // p: PathBuf
-            p.to_str().map(|x| String::from(x)) // : Result<String, GlobError>
-        }) // : Iterator<Result<Result<String, _>, _>>
-    }) // : Iterator<Result<String, _>
-    .flatten()
-}
-
 fn input_files(input_glob: &str) -> impl Iterator<Item = PathBuf> {
     glob(input_glob).unwrap().flatten()
 }
 
 fn main() {
     let matches = App::new("E-Ink Gallery Maker")
-        .version("6000000000")
+        .version("zero")
         .author("bballant")
-        .about("Make jpgs for display on raspberry pi e-ink display.")
+        .about("Make pngs for display on raspberry pi e-ink display.")
         .arg(
             Arg::with_name("GLOB")
                 .required(true)
