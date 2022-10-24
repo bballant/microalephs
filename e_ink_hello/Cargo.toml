@@ -1,0 +1,33 @@
+[package]
+name = "eink_hello"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ssd1675 = "0.5.0"
+linux-embedded-hal = "0.3.2"
+profont = "0.5.0"
+embedded-graphics = "0.7.1"
+
+# [dependencies.embedded-hal]
+# features = ["unproven"]
+# version = "0.2.6"
+# 
+# [dependencies.embedded-graphics]
+# optional = true
+# version = "0.7.1"
+# 
+# [dependencies.linux-embedded-hal]
+# optional = true
+# version = "0.3.2"
+# 
+# [dependencies.profont]
+# optional = true
+# version = "0.5.0"
+# 
+# [features]
+# default = ["graphics"]
+# graphics = ["embedded-graphics"]
+
