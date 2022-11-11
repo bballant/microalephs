@@ -42,7 +42,7 @@ fn main() -> ! {
     );
 
     let interface = I2CDisplayInterface::new(i2c);
-    let mut display = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate180)
+    let mut display = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
         .into_buffered_graphics_mode();
 
     display.init().unwrap();
@@ -234,7 +234,7 @@ fn main() -> ! {
         let im = Image::new(&raw, Point::new(0, 0));
         im.draw(&mut display).unwrap();
         display.flush().unwrap();
-        asm::delay(100000000);
+        asm::delay(11_1111_111);
         curr_img = curr_img + 1;
     }
 
