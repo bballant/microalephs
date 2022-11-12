@@ -6,9 +6,8 @@ use panic_halt as _;
 use ssd1306::{prelude::*, I2CDisplayInterface, Ssd1306, size::DisplaySize128x64};
 use stm32f4xx_hal as hal;
 
-use core::{fmt::Write, borrow::BorrowMut};
+use core::{fmt::Write};
 use cortex_m_rt::{entry, exception, ExceptionFrame};
-use cortex_m::asm;
 use fugit::{Duration, ExtU32};
 use embedded_graphics::{
     mono_font::{ascii::FONT_6X10, MonoTextStyleBuilder},
@@ -18,8 +17,8 @@ use embedded_graphics::{
     text::{Baseline, Text},
 };
 use hal::pac;
+use hal::rcc;
 use hal::prelude::*;
-use hal::timer::Event;
 use heapless::String;
 
 mod images;
@@ -37,6 +36,9 @@ fn main() -> ! {
         .font(&FONT_6X10)
         .text_color(BinaryColor::On)
         .build();
+
+
+    // Configure three displays on I2C //
 
     // Configure I2C1
     let scl =
@@ -110,80 +112,71 @@ fn main() -> ! {
 
     display3.init().unwrap();
 
-    let mut counter1 = dp.TIM1.counter_ms(&clocks);
-    let mut counter2 = dp.TIM2.counter_ms(&clocks);
-    let mut counter3 = dp.TIM3.counter_us(&clocks);
+    fn rando_g(tim3: pac::TIM3, tim4: pac::TIM4, clocks: rcc::Clocks) -> u32 {
+        let mut counter_a = tim3.counter_ms(&clocks);
+        let mut counter_b = tim4.counter_us(&clocks);
+        counter_a.start(20000.millis()).unwrap();
+        counter_b.start(6501.micros()).unwrap();
+        nb::block!(counter_a.wait()).unwrap();
+        let ret_val = counter_b.now().ticks();
+        counter_a.cancel().unwrap();
+        counter_b.cancel().unwrap();
+        ret_val
+    }
 
-    let dur: Duration<u32, 1, 1000> = 20000.millis();
+    let rand_n = rando_g(dp.TIM3, dp.TIM4, clocks);
+    //let rand_n = 0;
 
-    counter1.start(dur).unwrap();
+    // Configure App Counter
 
-    let dur2: Duration<u32, 1, 1000> = 60.millis();
-    let dur3: Duration<u32, 1, 1000000> = 60000.micros();
-    counter2.start(dur2).unwrap();
-    counter3.start(dur3).unwrap();
+    let mut app_counter = dp.TIM2.counter_ms(&clocks);
+    // flip picture every 15 seconds
+    let dur: Duration<u32, 1, 1000> = 15000.millis();
+    app_counter.start(dur).unwrap();
 
-    // let x =
-    //     match foo {
-    //         Ok(_) => "ok",
-    //         Err(err) =>
-    //             if err == Disabled {
-    //                 "Disabled"
-    //             } else {
-    //                 "WrongAutoReload"
-    //             }
-    //     };
-
-    // if foo.is_err() {
-    //     display.clear();
-    //     Text::with_baseline(x, Point::zero(), text_style, Baseline::Top)
-    //         .draw(&mut display)
-    //         .unwrap();
-    //     display.flush().unwrap();
-    //     asm::delay(20000000);
-    // }
-
-    let mut curr_img = 0;
-    let mut curr_img2 = 100;
+    let mut curr_img2 = 0;
     let mut curr_img3 = 150;
     loop {
 
         display.clear();
 
         // counter 1
-        let mut counter1_msg: String<20> = String::from("");
-        let count1 = counter1.now().ticks();
-        write!(counter1_msg,"{}", count1).unwrap();
+        let mut app_counter_msg: String<20> = String::from("");
+        let app_ticks = app_counter.now().ticks();
+        write!(app_counter_msg,"{}", app_ticks).unwrap();
 
-        Text::with_baseline(&counter1_msg, Point::zero(), text_style, Baseline::Top)
+        Text::with_baseline(&app_counter_msg, Point::zero(), text_style, Baseline::Top)
             .draw(&mut display)
             .unwrap();
 
-        // counter 2
-        let mut counter2_msg: String<20> = String::from("");
-        let count2 = counter2.now().ticks();
-        write!(counter2_msg,"{}", count2).unwrap();
-
-        Text::with_baseline(&counter2_msg, Point::new(0, 16), text_style, Baseline::Top)
-            .draw(&mut display)
-            .unwrap();
-
-        // counter 3
-        let count3 = counter3.now().ticks();
-        let mut counter3_msg: String<20> = String::from("");
-        write!(counter3_msg,"{}", count3).unwrap();
-
-        Text::with_baseline(&counter3_msg, Point::new(0, 32), text_style, Baseline::Top)
-            .draw(&mut display)
-            .unwrap();
-
-        // sums
         let mut sums_msg: String<20> = String::from("");
-        if counter2.wait().is_ok() {
-            write!(sums_msg,"Cool {}", curr_img2).unwrap();
+        if app_counter.wait().is_ok() {
+
+            write!(sums_msg,"Cool {}... ok {}", curr_img2, rand_n).unwrap();
+
+            // display2
+            if curr_img2 == images::IMAGES.len() {curr_img2 = 0};
+            let im2 = images::IMAGES[curr_img2];
+            display2.clear();
+            let raw2: ImageRaw<BinaryColor> =ImageRaw::new(im2, 128);
+            let im2 = Image::new(&raw2, Point::new(0, 0));
+            im2.draw(&mut display2).unwrap();
+            display2.flush().unwrap();
+
+            // display 3
+            if curr_img3 == images::IMAGES.len() {curr_img3 = 0};
+            let im3 = images::IMAGES[curr_img3];
+            display3.clear();
+            let raw3: ImageRaw<BinaryColor> =ImageRaw::new(im3, 128);
+            let im3 = Image::new(&raw3, Point::new(0, 0));
+            im3.draw(&mut display3).unwrap();
+            display3.flush().unwrap();
+
+            curr_img2 = curr_img2 + 1;
+            curr_img3 = curr_img3 + 1;
         }
         else {
-            write!(sums_msg,"{}", count3 - (1000 * count2)).unwrap();
+            write!(sums_msg,"Just_ {}... ok {}", curr_img2, rand_n).unwrap();
         }
 
         Text::with_baseline(&sums_msg, Point::new(0, 48), text_style, Baseline::Top)
@@ -191,37 +184,6 @@ fn main() -> ! {
             .unwrap();
 
         display.flush().unwrap();
-
-        //if curr_img == images::IMAGES.len() {curr_img = 0};
-        //let im = images::IMAGES[curr_img];
-        //display.clear();
-        //let raw: ImageRaw<BinaryColor> =ImageRaw::new(im, 128);
-        //let im = Image::new(&raw, Point::new(0, 0));
-        //im.draw(&mut display).unwrap();
-        //display.flush().unwrap();
-
-        // display2 2
-        if curr_img2 == images::IMAGES.len() {curr_img2 = 0};
-        let im2 = images::IMAGES[curr_img2];
-        display2.clear();
-        let raw2: ImageRaw<BinaryColor> =ImageRaw::new(im2, 128);
-        let im2 = Image::new(&raw2, Point::new(0, 0));
-        im2.draw(&mut display2).unwrap();
-        display2.flush().unwrap();
-
-        // display 3
-        if curr_img3 == images::IMAGES.len() {curr_img3 = 0};
-        let im3 = images::IMAGES[curr_img3];
-        display3.clear();
-        let raw3: ImageRaw<BinaryColor> =ImageRaw::new(im3, 128);
-        let im3 = Image::new(&raw3, Point::new(0, 0));
-        im3.draw(&mut display3).unwrap();
-        display3.flush().unwrap();
-
-        asm::delay(10000000);
-        curr_img = curr_img + 1;
-        curr_img2 = curr_img2 + 1;
-        curr_img3 = curr_img3 + 1;
     }
 
 }
