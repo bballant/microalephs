@@ -28,12 +28,14 @@ fn main() -> ! {
     let rcc = dp.RCC.constrain();
     let clocks = rcc.cfgr.freeze();
 
-    let gpioa = dp.GPIOA.split();
+    let gpioc = dp.GPIOC.split();
+    let mut led = gpioc.pc13.into_push_pull_output();
 
+    let gpioa = dp.GPIOA.split();
 
     // SPI1
     let sck = gpioa.pa5.into_alternate();
-    let mosi = gpioa.pa7.into_alternate().internal_pull_up(true);
+    let mosi = gpioa.pa7.into_alternate();
 
     let rst = gpioa.pa1.into_push_pull_output();
     let dc = gpioa.pa0.into_push_pull_output();
@@ -49,26 +51,27 @@ fn main() -> ! {
         &clocks,
     );
 
-    let mut disp = st7735_lcd::ST7735::new(spi, dc, rst, true, false, 160, 128);
+    let mut disp = st7735_lcd::ST7735::new(spi, dc, rst, true, false, 128, 160);
 
     let mut delay = cp.SYST.delay(&clocks);
     disp.init(&mut delay).unwrap();
     disp.set_orientation(&Orientation::Landscape).unwrap();
     //disp.clear(Rgb565::BLACK);
     disp.clear(Rgb565::RED).unwrap();
-    disp.set_offset(0, 25);
+//    disp.set_offset(0, 25);
 
     // draw ferris
-    let image_raw: ImageRaw<Rgb565> =
-        ImageRaw::new(include_bytes!("../../images/ferris.raw"), 86);
-    let image = Image::new(&image_raw, Point::new(34, 8));
-
-    image.draw(&mut disp).unwrap();
+//    let image_raw: ImageRaw<Rgb565> =
+//        ImageRaw::new(include_bytes!("../../images/128x64/017.gray"), 86);
+//        //ImageRaw::new(include_bytes!("../../images/ferris.raw"), 86);
+//    let image = Image::new(&image_raw, Point::new(34, 8));
+//
+//    image.draw(&mut disp).unwrap();
     // Configure App Counter
 
     let mut app_counter = dp.TIM2.counter_ms(&clocks);
     // flip picture every 15 seconds
-    let dur: Duration<u32, 1, 1000> = 15000.millis();
+    let dur: Duration<u32, 1, 1000> = 2000.millis();
     app_counter.start(dur).unwrap();
 
     let mut im1 = 0;
@@ -88,6 +91,7 @@ fn main() -> ! {
             };
 
             write!(sums_msg, "flipping {}, {}", im1, im2).unwrap();
+            led.toggle();
 
         } else {
             write!(sums_msg, "showing {}, {}", im1, im2).unwrap();

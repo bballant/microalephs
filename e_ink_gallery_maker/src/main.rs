@@ -98,11 +98,11 @@ fn main() {
             Some(img) => {
                 let output_path = format!("{}/{:03}.{}.png", output_dir, i, filename);
                 println!("Creating {}.", output_path);
-                // let img = resize_crop(&img, 122, 255);
-                let img = resize_crop(&img, 128, 64);
+                let img = resize_crop(&img, 122, 255);
+                //let img = resize_crop(&img, 128, 64);
                 let img = colorops::grayscale(&img);
                 let img = colorops::brighten(&img, 20);
-                let mut out = colorops::contrast(&img, 150.0);
+                let mut out = colorops::contrast(&img, 100.0);
                 colorops::dither(&mut out, &colorops::BiLevel);
                 println!("Saving {}.", output_path);
                 match out.save(&output_path) {
