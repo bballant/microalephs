@@ -22,20 +22,25 @@ fn main() -> ! {
     let rcc = dp.RCC.constrain();
     let clocks = rcc.cfgr.freeze();
 
+    // LED
+    let gpioc = dp.GPIOC.split();
+    let mut led = gpioc.pc13.into_push_pull_output();
+    led.set_low();
+
     let gpiob = dp.GPIOB.split();
 
     // Configure I2C1
     let scl =
         gpiob
-            .pb6
+            .pb10
             .into_alternate_open_drain();
     let sda =
         gpiob
-            .pb7
+            .pb3
             .into_alternate_open_drain();
 
     let i2c = hal::i2c::I2c::new(
-        dp.I2C1,
+        dp.I2C2,
         (scl, sda),
         hal::i2c::Mode::standard(100.kHz()),
         &clocks
@@ -221,21 +226,20 @@ fn main() -> ! {
         include_bytes!("../../images/64x128r90/171.gray"),
         include_bytes!("../../images/64x128r90/172.gray"),
         include_bytes!("../../images/64x128r90/173.gray"),
-        include_bytes!("../../images/64x128r90/174.gray"),
-        include_bytes!("../../images/64x128r90/175.gray"),
     ];
 
     let mut curr_img = 0;
     loop {
         if curr_img == imgs.len() {curr_img = 0};
         let im = imgs[curr_img];
-        display.clear();
-        let raw: ImageRaw<BinaryColor> =ImageRaw::new(im, 128);
-        let im = Image::new(&raw, Point::new(0, 0));
-        im.draw(&mut display).unwrap();
-        display.flush().unwrap();
-        asm::delay(11_1111_111);
+        // display.clear();
+        // let raw: ImageRaw<BinaryColor> =ImageRaw::new(im, 128);
+        // let im = Image::new(&raw, Point::new(0, 0));
+        // im.draw(&mut display).unwrap();
+        // display.flush().unwrap();
+        asm::delay(2_1111_111);
         curr_img = curr_img + 1;
+        led.toggle();
     }
 
 }
