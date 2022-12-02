@@ -10,18 +10,14 @@ use ssd1306::{
 };
 use stm32f4xx_hal as hal;
 
-use core::fmt::Write;
 use cortex_m_rt::{entry, exception, ExceptionFrame};
 use embedded_graphics::{
     image::{Image, ImageRaw},
-    mono_font::{ascii::FONT_6X10, MonoTextStyleBuilder},
     pixelcolor::BinaryColor,
     prelude::*,
-    text::{Baseline, Text},
 };
 use fugit::{Duration, ExtU32};
 use hal::{i2c::I2c, pac, prelude::*};
-use heapless::String;
 
 mod images;
 
@@ -49,12 +45,6 @@ fn main() -> ! {
     let clocks = rcc.cfgr.freeze();
 
     let gpiob = dp.GPIOB.split();
-    let gpioa = dp.GPIOA.split();
-
-    let text_style = MonoTextStyleBuilder::new()
-        .font(&FONT_6X10)
-        .text_color(BinaryColor::On)
-        .build();
 
     // Configure three displays on I2C //
 
@@ -94,24 +84,6 @@ fn main() -> ! {
 
     display2.init().unwrap();
 
-    // Configure I2C3
-    let scl3 = gpioa.pa8.into_alternate_open_drain();
-
-    let sda3 = gpiob.pb4.into_alternate_open_drain();
-
-    let i2c3 = hal::i2c::I2c::new(
-        dp.I2C3,
-        (scl3, sda3),
-        hal::i2c::Mode::standard(100.kHz()),
-        &clocks,
-    );
-
-    let interface3 = I2CDisplayInterface::new(i2c3);
-    let mut display3 = Ssd1306::new(interface3, DisplaySize128x64, DisplayRotation::Rotate0)
-        .into_buffered_graphics_mode();
-
-    display3.init().unwrap();
-
     // Configure App Counter
 
     let mut app_counter = dp.TIM2.counter_ms(&clocks);
@@ -119,47 +91,32 @@ fn main() -> ! {
     let dur: Duration<u32, 1, 1000> = 15000.millis();
     app_counter.start(dur).unwrap();
 
+    let mut app_counter2 = dp.TIM3.counter_ms(&clocks);
+    // flip picture every 15 seconds
+    let dur2: Duration<u32, 1, 1000> = 13000.millis();
+    app_counter2.start(dur2).unwrap();
+
     let mut im1 = 0;
     let mut im2 = 150;
-    my_draw(im1, &mut display2);
-    my_draw(im2, &mut display3);
+    my_draw(im1, &mut display);
+    my_draw(im2, &mut display2);
     loop {
-        display.clear();
 
-        // counter 1
-        let mut app_counter_msg: String<20> = String::from("");
-        let app_ticks = app_counter.now().ticks();
-        write!(app_counter_msg, "{}", app_ticks).unwrap();
-
-        Text::with_baseline(&app_counter_msg, Point::zero(), text_style, Baseline::Top)
-            .draw(&mut display)
-            .unwrap();
-
-        let mut sums_msg: String<20> = String::from("");
         if app_counter.wait().is_ok() {
             im1 = im1 + 1;
-            im2 = im2 + 1;
-
             if im1 == images::IMAGES.len() {
                 im1 = 0
             };
+            my_draw(im1, &mut display);
+        }
+
+        if app_counter2.wait().is_ok() {
+            im2 = im2 + 1;
             if im2 == images::IMAGES.len() {
                 im2 = 0
             };
-
-            write!(sums_msg, "flipping {}, {}", im1, im2).unwrap();
-
-            my_draw(im1, &mut display2);
-            my_draw(im2, &mut display3);
-        } else {
-            write!(sums_msg, "showing {}, {}", im1, im2).unwrap();
+            my_draw(im2, &mut display2);
         }
-
-        Text::with_baseline(&sums_msg, Point::new(0, 48), text_style, Baseline::Top)
-            .draw(&mut display)
-            .unwrap();
-
-        display.flush().unwrap();
     }
 }
 

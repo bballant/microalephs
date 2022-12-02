@@ -32,15 +32,15 @@ fn main() -> ! {
     // Configure I2C1
     let scl =
         gpiob
-            .pb10
+            .pb6
             .into_alternate_open_drain();
     let sda =
         gpiob
-            .pb3
+            .pb7
             .into_alternate_open_drain();
 
     let i2c = hal::i2c::I2c::new(
-        dp.I2C2,
+        dp.I2C1,
         (scl, sda),
         hal::i2c::Mode::standard(100.kHz()),
         &clocks
