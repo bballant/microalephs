@@ -88,7 +88,7 @@ fn main() -> ! {
 
     let mut app_counter = dp.TIM2.counter_ms(&clocks);
     // flip picture every 15 seconds
-    let dur: Duration<u32, 1, 1000> = 15000.millis();
+    let dur: Duration<u32, 1, 1000> = 14000.millis();
     app_counter.start(dur).unwrap();
 
     let mut app_counter2 = dp.TIM3.counter_ms(&clocks);
@@ -97,7 +97,7 @@ fn main() -> ! {
     app_counter2.start(dur2).unwrap();
 
     let mut im1 = 0;
-    let mut im2 = 150;
+    let mut im2 = im1+7; // how many things can you remember?
     my_draw(im1, &mut display);
     my_draw(im2, &mut display2);
     loop {
