@@ -4,4 +4,4 @@ without context.
 
 \* They need electricity.
 
-![Microalephs](microalephs.jpg "Microalephs")
+<img src="microalephs.jpg" alt="microalephs" width="300"/>
