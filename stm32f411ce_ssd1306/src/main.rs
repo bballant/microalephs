@@ -46,26 +46,6 @@ fn main() -> ! {
 
     let gpiob = dp.GPIOB.split();
 
-    // Configure three displays on I2C //
-
-    // Configure I2C1
-    let scl = gpiob.pb8.into_alternate_open_drain();
-
-    let sda = gpiob.pb9.into_alternate_open_drain();
-
-    let i2c = I2c::new(
-        dp.I2C1,
-        (scl, sda),
-        hal::i2c::Mode::standard(100.kHz()),
-        &clocks,
-    );
-
-    let interface = I2CDisplayInterface::new(i2c);
-    let mut display = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
-        .into_buffered_graphics_mode();
-
-    display.init().unwrap();
-
     // Configure I2C2
     let scl2 = gpiob.pb10.into_alternate_open_drain();
 
@@ -98,17 +78,16 @@ fn main() -> ! {
 
     let mut im1 = 0;
     let mut im2 = im1+7; // how many things can you remember?
-    my_draw(im1, &mut display);
     my_draw(im2, &mut display2);
     loop {
 
-        if app_counter.wait().is_ok() {
-            im1 = im1 + 1;
-            if im1 == images::IMAGES.len() {
-                im1 = 0
-            };
-            my_draw(im1, &mut display);
-        }
+//        if app_counter.wait().is_ok() {
+//            im1 = im1 + 1;
+//            if im1 == images::IMAGES.len() {
+//                im1 = 0
+//            };
+//            my_draw(im1, &mut display);
+//        }
 
         if app_counter2.wait().is_ok() {
             im2 = im2 + 1;
